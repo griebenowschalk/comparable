@@ -1,4 +1,8 @@
 #!/bin/sh
 set -e
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PATH="$HOME/.bun/bin:$PATH"
-bunx lint-staged
+# Husky runs with a minimal PATH; workspace CLIs live under node_modules/.bin
+export PATH="$ROOT/node_modules/.bin:$ROOT/frontend/node_modules/.bin:$PATH"
+cd "$ROOT" || exit 1
+exec bunx lint-staged
