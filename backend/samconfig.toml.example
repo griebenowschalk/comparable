@@ -1,0 +1,11 @@
+# Copy to samconfig.toml (gitignored) after `sam deploy --guided`, or use:
+# sam deploy --stack-name comparable-dev --capabilities CAPABILITY_IAM --resolve-s3
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "comparable-backend"
+region = "eu-west-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true

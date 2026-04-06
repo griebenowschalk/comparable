@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Comparable serverless API (API Gateway + Lambda + DynamoDB + Cognito) — reference stack for this repo.
+
+Globals:
+  Function:
+    Timeout: 29
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+
+Resources:
+  FitnessTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-fitness
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${AWS::StackName}-spa
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  ComparableApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'DELETE,GET,OPTIONS,POST'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        AddDefaultAuthorizerToCorsPreflight: false
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      CodeUri: functions/api/
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref FitnessTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FitnessTable
+      Events:
+        CompareGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ComparableApi
+            Path: /me/compare
+            Method: GET
+        CompareEntriesPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ComparableApi
+            Path: /me/compare/entries
+            Method: POST
+        CompareEntryDelete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ComparableApi
+            Path: /me/compare/entries/{entryId}
+            Method: DELETE
+
+Outputs:
+  ApiUrl:
+    Description: Set frontend PUBLIC_API_URL to this value (no trailing slash).
+    Value: !Sub https://${ComparableApi}.execute-api.${AWS::Region}.amazonaws.com/Prod
+  UserPoolId:
+    Description: Cognito User Pool ID (Amplify / Hosted UI).
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito app client ID (SPA audience).
+    Value: !Ref UserPoolClient
+  FitnessTableName:
+    Description: DynamoDB table name.
+    Value: !Ref FitnessTable
