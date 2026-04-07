@@ -1,25 +1,46 @@
 import { useNavigate } from "react-router-dom";
 
 import { SignUpForm } from "../components/sign-up-form";
-import { useAuth } from "../auth-context";
 import { PageShell } from "@/shared/components/layout/page-shell";
+import { DebugCode } from "@/shared/components/debug-code";
+import { isCognitoConfigured, isPublicDebugUi } from "@/env";
 
 export function SignUpPage() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const cognitoReady = isCognitoConfigured();
 
   return (
     <PageShell>
       <div className="pb-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Sign up</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Register, then confirm with the code sent to your email.
+          Register with your email, then enter the code we send you.
         </p>
+        {!cognitoReady ? (
+          <p className="text-destructive mx-auto mt-4 max-w-md text-sm">
+            Cognito is not configured. Add User Pool ID and App Client ID to{" "}
+            <span className="font-medium">frontend/.env</span> from your stack
+            outputs after deploy.
+            {isPublicDebugUi() ? (
+              <>
+                {" "}
+                Variables:{" "}
+                <DebugCode className="text-xs">
+                  PUBLIC_COGNITO_USER_POOL_ID
+                </DebugCode>
+                ,{" "}
+                <DebugCode className="text-xs">
+                  PUBLIC_COGNITO_CLIENT_ID
+                </DebugCode>{" "}
+                (after <DebugCode className="text-xs">sam deploy</DebugCode>).
+              </>
+            ) : null}
+          </p>
+        ) : null}
       </div>
       <SignUpForm
-        onRegistered={() => {
-          login();
-          navigate("/compare", { replace: true });
+        onConfirmed={() => {
+          navigate("/", { replace: true });
         }}
       />
     </PageShell>

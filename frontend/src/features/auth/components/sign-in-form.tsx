@@ -1,34 +1,73 @@
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/atoms/input";
+import { Spinner } from "@/shared/components/atoms/spinner";
 import { AlertBanner } from "@/shared/components/molecules/alert-banner";
-import { FormField } from "@/shared/components/molecules/form-field";
+import {
+  FormFieldsFromConfig,
+  type FormInputFieldConfig,
+} from "@/shared/components/molecules/form-fields-from-config";
+import { getErrorMessage } from "@/lib/error-message";
+
+import { signInWithPassword } from "../cognito";
+
+const SIGN_IN_FORM_FIELDS = [
+  {
+    id: "email",
+    name: "email",
+    label: "Email",
+    inputProps: {
+      type: "email" as const,
+      autoComplete: "email" as const,
+      required: true,
+    },
+  },
+  {
+    id: "password",
+    name: "password",
+    label: "Password",
+    inputProps: {
+      type: "password" as const,
+      autoComplete: "current-password" as const,
+      required: true,
+    },
+  },
+] as const satisfies readonly FormInputFieldConfig[];
 
 type Props = {
-  onSuccess: () => void;
+  onSuccess: (idToken: string) => void;
 };
 
 export function SignInForm({ onSuccess }: Props) {
   const [didFail, setDidFail] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setDidFail(false);
-    setIsLoading(true);
+    setErrorMessage(null);
     const form = e.currentTarget;
     const data = new FormData(form);
-    const username = String(data.get("username") ?? "").trim();
+    const email = String(data.get("email") ?? "").trim();
     const password = String(data.get("password") ?? "");
-    window.setTimeout(() => {
+    if (!email || !password) {
+      setDidFail(true);
+      setErrorMessage("Email and password are required.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const idToken = await signInWithPassword(email, password);
+      onSuccess(idToken);
+    } catch (err) {
+      setDidFail(true);
+      setErrorMessage(
+        getErrorMessage(err, "Sign in failed. Check your email and password."),
+      );
+    } finally {
       setIsLoading(false);
-      if (!username || !password) {
-        setDidFail(true);
-        return;
-      }
-      onSuccess();
-    }, 350);
+    }
   }
 
   return (
@@ -36,23 +75,18 @@ export function SignInForm({ onSuccess }: Props) {
       onSubmit={onSubmit}
       className="border-border bg-card space-y-6 rounded-xl border p-8 shadow-sm"
     >
-      {didFail ? (
-        <AlertBanner>Something went wrong, please try again!</AlertBanner>
+      {didFail && errorMessage ? (
+        <AlertBanner>{errorMessage}</AlertBanner>
       ) : null}
-      <FormField id="username" label="Username">
-        <Input id="username" name="username" autoComplete="username" required />
-      </FormField>
-      <FormField id="password" label="Password">
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-      </FormField>
+      <FormFieldsFromConfig fields={SIGN_IN_FORM_FIELDS} />
       <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Signing in…" : "Submit"}
+        {isLoading ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner className="size-4" /> Signing in…
+          </span>
+        ) : (
+          "Sign in"
+        )}
       </Button>
     </form>
   );

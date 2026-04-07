@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot ./index.html",
+    "dev": "bun --hot --env-file=.env ./index.html",
     "build": "bun build ./index.html --outdir=dist --minify --env=PUBLIC_*",
     "start": "bun run build && bun ./dist/index.html",
     "lint": "eslint . --max-warnings 0",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
+    "amazon-cognito-identity-js": "^6.3.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
